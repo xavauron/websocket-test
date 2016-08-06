@@ -1,13 +1,8 @@
 package com.xdassa.endpoint;
 
-import javax.websocket.EncodeException;
-import javax.websocket.OnMessage;
-import javax.websocket.OnOpen;
-import javax.websocket.Session;
+import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -16,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 @ServerEndpoint(value = "/compteur")
 public class EndpointImpl implements Endpoint {
 
-    static Queue<Session> sessions = new ConcurrentLinkedQueue<Session>();
+    private Session session;
     private int compteur;
 
     public EndpointImpl() {
@@ -29,26 +24,46 @@ public class EndpointImpl implements Endpoint {
 
     @OnOpen
     public void openConnection(Session session) {
-        sessions.add(session);
+        this.session = session;
     }
 
-    public void sendMessage(int i) {
-        sessions.stream().forEach(session -> {
-            if (session.isOpen()) {
-                try {
-                    session.getBasicRemote().sendObject(compteur);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (EncodeException e) {
-                    e.printStackTrace();
-                }
+    public synchronized void sendMessage(int i) {
+
+        if (session.isOpen()) {
+            try {
+                session.getBasicRemote().sendObject(compteur);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (EncodeException e) {
+                e.printStackTrace();
             }
-        });
+        }
+
     }
 
     @OnMessage
     public void onMessage(Session session, int i) {
 
+    }
+
+    @OnError
+    public void onError(Throwable t) {
+
+        try {
+            session.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @OnClose
+    public void closeConnection() {
+
+        try {
+            session.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private class IncrementCompteurRunnbale implements Runnable {
